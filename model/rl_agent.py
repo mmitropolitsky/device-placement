@@ -1,4 +1,4 @@
-import rl_params as params
+import model.rl_params as params
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.framework import ops as tf_ops
@@ -109,7 +109,6 @@ class ReinforceAgent(object):
   def _get_optimizer(self):
 
     lr = self.lr = self.setup_lr()
-
     # tf.summary.scalar('lr', self.lr)
     optimizer_type = self.optimizer_type
     if optimizer_type == "adam":
@@ -128,9 +127,7 @@ class ReinforceAgent(object):
   def _build_train_ops(self,
                        grad_bound=1.25,
                        dont_repeat_ff=False):
-
     tf_variables = tf_ops.get_collection(tf_ops.GraphKeys.TRAINABLE_VARIABLES),
-
     opt = self._get_optimizer()
 
     pl_ent_loss = self.pl_ent_loss
@@ -170,7 +167,6 @@ class ReinforceAgent(object):
     # if not dont_repeat_ff:
     # grads_and_vars = opt.compute_gradients(loss, tf_variables)
     self.grad_outs = None
-
     for i, [g, v] in enumerate(grads_and_vars):
       if g is not None:
         # if not dont_repeat_ff: 
@@ -190,7 +186,6 @@ class ReinforceAgent(object):
     if not self.no_grad_clip:
       clipped_grads = self._clip_grads_and_vars(gradphs_and_vars, 
                                                   self.grad_norm, grad_bound)
-
     train_op = opt.apply_gradients(clipped_grads, self.global_step)
 
     return train_op, self.grad_outs, self.logprob_grad_outs, self.ent_grad_outs

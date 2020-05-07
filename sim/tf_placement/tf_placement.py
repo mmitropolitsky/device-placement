@@ -1,6 +1,6 @@
 from park.param import config
-from park.envs.tf_placement.tf_env import TFRuntime
-from park.envs.tf_placement_sim.tf_placement_sim import TFPlacementSimEnv
+from sim.tf_placement.tf_env import TFRuntime
+from sim.tf_placement_sim.tf_placement_sim import TFPlacementSimEnv
 
 class TFPlacementEnv(TFPlacementSimEnv):
     """

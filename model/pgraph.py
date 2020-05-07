@@ -1,7 +1,9 @@
 import networkx as nx
 import sys, random, os, copy, json
-import numpy as np 
-import global_config as config
+import numpy as np
+# import global_config as config
+from numpy.distutils.system_info import p
+import matplotlib.pyplot as plt
 
 ''' uses static object n_devs'''
 class NodeEmbeddings(object):
@@ -12,8 +14,8 @@ class NodeEmbeddings(object):
     self.curr_bit = 0
     self.done_bit = 0
     self.start_time = None
-    if config.use_mem_attr:
-      self.mem = mem
+    # if config.use_mem_attr:
+    #   self.mem = mem
 
   def placement_to_one_hot(self, p):
     try:
@@ -47,8 +49,8 @@ class NodeEmbeddings(object):
     n_devs = NodeEmbeddings.n_devs
     l = [self.cost, self.out_size, self.done_bit, self.curr_bit, self.start_time]
            
-    if config.use_mem_attr:
-      l.append(self.mem)
+    # if config.use_mem_attr:
+    #   l.append(self.mem)
 
     l = l + self.placement_to_one_hot(self.placement)
 
@@ -56,10 +58,10 @@ class NodeEmbeddings(object):
 
   @staticmethod
   def get_emb_size():
-    if config.use_mem_attr:
-      return 6 + NodeEmbeddings.n_devs
-    else:
-      return 5 + NodeEmbeddings.n_devs
+    # if config.use_mem_attr:
+    #   return 6 + NodeEmbeddings.n_devs
+    # else:
+    return 5 + NodeEmbeddings.n_devs
 
   @staticmethod
   def normalize(E, factors):
@@ -68,9 +70,9 @@ class NodeEmbeddings(object):
       if factors[i] != 0:
         E[:, i] /= factors[i]
 
-    if config.use_mem_attr:
-      if factors[5] != 0:
-        E[:, 5] /= factors[5]
+    # if config.use_mem_attr:
+    #   if factors[5] != 0:
+    #     E[:, 5] /= factors[5]
 
     return E
 
@@ -84,6 +86,7 @@ class ProgressiveGraph(object):
 
   def __init__(self, G, n_devs, node_traversal_order, seed=42):
     # Networkx graph object with cost attribute set for each node
+
     random.seed(seed)
     G = copy.deepcopy(G)
     self.G = G
@@ -105,9 +108,9 @@ class ProgressiveGraph(object):
     nx.set_node_attributes(G, d, 'idx')
 
     for n in self.nodes():
-      assert G.node[n]['cost'] is not None
-      assert G.node[n]['out_size'] is not None
-      assert G.node[n]['mem'] is not None
+      assert G.nodes[n]['cost'] is not None
+      assert G.nodes[n]['out_size'] is not None
+      assert G.nodes[n]['mem'] is not None
 
     self.init_node_embeddings()
     self.init_positional_mats()
@@ -130,7 +133,7 @@ class ProgressiveGraph(object):
 
   def refresh(self, nodes, new_p):
     for p, node in zip(new_p, nodes):
-      self.G.node[node]['placement'] = p
+      self.G.nodes[node]['placement'] = p
       i = self.get_idx(node)
       self.node_embeddings[i].update_placement(p)
 
@@ -138,7 +141,7 @@ class ProgressiveGraph(object):
     E = []
     G = self.G
     for n in self.nodes():
-      e = NodeEmbeddings(G.node[n]['cost'], G.node[n]['out_size'], G.node[n]['mem'])
+      e = NodeEmbeddings(G.nodes[n]['cost'], G.nodes[n]['out_size'], G.nodes[n]['mem'])
       E.append(e)
     self.node_embeddings = E
 
@@ -210,18 +213,20 @@ class ProgressiveGraph(object):
       e.reset_done_bit()
 
   def get_peer_mask(self, node, start_times, n_peers):
-    i = self.G.node[node]['idx']
-    start_times = np.abs(start_times - start_times[:, i])
-    start_times += (np.logical_not(self.peer_mat[i, :])* int(1e9))
-    if n_peers:
-      peer_idx = np.argpartition(-start_times[0], -n_peers)[-n_peers:]
-    else:
-      peer_idx = range(0, self.n_nodes())
-    peer_idx = filter(lambda i: start_times[:, i] < int(1e9), peer_idx)
-    peer_mask = np.zeros_like(start_times)
-    for peer in peer_idx:
-      peer_mask[:, peer] = 1.
-    return peer_mask
+    return self.peer_mat[self.get_idx(node), :]
+    # TODO
+    # i = self.G.nodes[node]['idx']
+    # start_times = np.abs(start_times - start_times[: i])
+    # start_times += (np.logical_not(self.peer_mat[i, :])* int(1e9))
+    # if n_peers:
+    #   peer_idx = np.argpartition(-start_times[0], -n_peers)[-n_peers:]
+    # else:
+    #   peer_idx = range(0, self.n_nodes())
+    # peer_idx = filter(lambda i: start_times[:, i] < int(1e9), peer_idx)
+    # peer_mask = np.zeros_like(start_times)
+    # for peer in peer_idx:
+    #   peer_mask[:, peer] = 1.
+    # return peer_mask
 
   # get all immediate parents and ancestors
   def get_ancestral_mask(self, node):
@@ -247,7 +252,8 @@ class ProgressiveGraph(object):
 
   def update_start_times(self, start_times):
     for i, n in enumerate(self.nodes()):
-      self.node_embeddings[i].update_start_time(start_times[0, i])
+      #TODO
+      self.node_embeddings[i].update_start_time(start_times[self.node_embeddings[i].placement])
 
   def get_zero_placement(self):
     d = {}
@@ -278,7 +284,9 @@ class ProgressiveGraph(object):
 
   def set_start_times(self, d):
     for i in range(self.n_nodes()):
-      self.node_embeddings[i].update_start_time(d[0, i])
+      # self.node_embeddings[i].update_start_time(d[0, i])
+      # TODO
+      self.node_embeddings[i].update_start_time(d[self.node_embeddings[i].placement])
 
   def get_source_nodes(self):
     src_nodes = []
@@ -294,13 +302,16 @@ class ProgressiveGraph(object):
     return src_nodes
 
   def get_idx(self, node):
-    return self.G.node[node]['idx']
+    return self.G.nodes[node]['idx']
     
   def neighbors(self, node):
     return self.G.neighbors(node)
 
   def predecessors(self, node):
     return self.G.predecessors(node)
+
+  def successors(self, node):
+    return self.G.successors(node)
 
   def nodes(self):
     return self.node_traversal_order

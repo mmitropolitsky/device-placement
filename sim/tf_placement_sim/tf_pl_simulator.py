@@ -75,6 +75,7 @@ class ImportantOpsSimulator(Simulator):
         if mem_utils[dev] > peak_utils[dev]:
           peak_utils[dev] = mem_utils[dev]
 
-      return r, peak_utils
+      # TODO
+      return r, peak_utils, mem_utils
 
     return r

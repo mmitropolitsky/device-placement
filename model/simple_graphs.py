@@ -3,6 +3,7 @@ import networkx as nx
 # d is the number of chains
 def makeChainGraph(N, d=2):
   G = nx.DiGraph()
+
   def add_edge(i, j):
     G.add_edge(str(i), str(j))
 
@@ -15,6 +16,7 @@ def makeChainGraph(N, d=2):
   '''
 
   n = 1
+  # TODO 2
   for i in range(d):
     add_edge(0, n)
     for j in range(N-1):
@@ -28,11 +30,14 @@ def makeChainGraph(N, d=2):
 
   cost = {}
   out_size = {}
+  mem = {}
   for i in G.nodes():
     cost[i] = 1
     out_size[i] = 1
+    mem[i] = .5
   nx.set_node_attributes(G, cost, 'cost')
   nx.set_node_attributes(G, out_size, 'out_size')
+  nx.set_node_attributes(G, mem, 'mem')
   G.d = d
 
   return G

@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from time import time
-from park.envs.tf_placement.model import get_model
+# from park.envs.tf_placement.model import get_model
 
 class TFRuntime(object):
 

@@ -7,7 +7,7 @@ import time, os, json, random
 import copy
 import sys
 import tensorflow as tf
-from cust_tb_summ import CustomTBSummary
+# from cust_tb_summ import CustomTBSummary
 
 class Coordinator(object):
   def __init__(self):
@@ -280,8 +280,8 @@ class Coordinator(object):
       os.system('mkdir -p %s 2> /dev/null' % tb_dir)
 
       tb_writer = tf.summary.FileWriter(tb_dir)
-      self.summ_writer += [CustomTBSummary(tb_writer, summ_names)]
-      self.eval_writer += [CustomTBSummary(tb_writer, ['run_times/argmax_ep_best_rt'])]
+      # self.summ_writer += [CustomTBSummary(tb_writer, summ_names)]
+      # self.eval_writer += [CustomTBSummary(tb_writer, ['run_times/argmax_ep_best_rt'])]
 
 
   def set_seeds(self, i = 0):

@@ -2,19 +2,20 @@ import sys
 sys.path.append('sim/')
 sys.path.append('../sim/')
 sys.path.append('../')
-from important_ops_simulator import ImportantOpsSimulator
-from grouper.group_pruner import neighbor_merge_pruner
+# from important_ops_simulator import ImportantOpsSimulator
+# from grouper.group_pruner import neighbor_merge_pruner
 import pickle
 import networkx as nx
+from sim.tf_placement_sim.tf_pl_simulator import ImportantOpsSimulator
 
 class PPTFItem(object):
 
-  def __init__(self, pickled_inp_file, n_devs, simplify_tf_rew_model=False, 
-                    final_size=None, use_new_sim=False, sim_mem_usage=False):
+  def __init__(self, pickled_inp_file, n_devs, simplify_tf_reward_model=False,
+               final_size=None, use_new_sim=False, sim_mem_usage=False):
 
     device_names = ['/device:GPU:%d' % i for i in range(n_devs)]
-    gpu_devs = filter(lambda dev: 'GPU' in dev, device_names)
-    gpu_devs = list(sorted(gpu_devs))
+    gpu_devices = filter(lambda dev: 'GPU' in dev, device_names)
+    gpu_devices = list(sorted(gpu_devices))
 
     with open(pickled_inp_file, 'rb') as f:
         j = pickle.load(f)
@@ -31,11 +32,11 @@ class PPTFItem(object):
     if len(nx.get_node_attributes(G, 'mem')) == 0:
       G = correct_mem_param(G, step_stats, ungroup_map)
 
-    if final_size is not None:
-        if len(G) > final_size:
-          G, ungroup_map = neighbor_merge_pruner(G, ungroup_map, final_size)
+    # if final_size is not None:
+    #     if len(G) > final_size:
+    #       G, ungroup_map = neighbor_merge_pruner(G, ungroup_map, final_size)
 
-    if simplify_tf_rew_model:
+    if simplify_tf_reward_model:
       assert False
       d = {}
       for n in G.nodes(): d[n] = 1
@@ -46,20 +47,21 @@ class PPTFItem(object):
     self.mg = mg
     self.ungroup_map = ungroup_map
     self.n_devs = n_devs
-    self.gpu_devs = gpu_devs
+    self.gpu_devs = gpu_devices
     self.use_new_sim = use_new_sim
     self.grouped_G = G
     self.sim_mem_usage = sim_mem_usage
     self.cost_d, self.out_d = cost_d, out_d
 
     if self.use_new_sim:
-        self.sim = ImportantOpsSimulator(mg, op_perf, step_stats, device_names,
-                                  cost_d=cost_d, out_d=out_d, temp_mem=temp_mem,
-                                  mem_info=mem_info)
+
+        self.sim = ImportantOpsSimulator(mg, op_perf, step_stats, device_names)
+                                  # cost_d=cost_d, out_d=out_d, temp_mem=temp_mem,
+                                  # mem_info=mem_info)
     else:
         raise Exception('Using old simulator is locked out by default')
-        from old_simulator import LegacySimulator
-        self.old_sim = LegacySimulator(self.cluster, True)
+        # from old_simulator import LegacySimulator
+        # self.old_sim = LegacySimulator(self.cluster, True)
 
 
   """

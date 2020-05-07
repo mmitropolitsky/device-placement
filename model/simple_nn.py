@@ -1,9 +1,9 @@
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.framework import ops as tf_ops
-from rl_agent import *
-from nn_primitives import *
-from progressive_nn import *
+from model.rl_agent import *
+from model.nn_primitives import *
+from model.progressive_nn import *
 
 
 class SimpleNN(ProgressiveNN):
