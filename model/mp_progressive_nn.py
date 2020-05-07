@@ -28,6 +28,7 @@ class MessagePassingProgressiveNN(ProgressiveNN):
                  pgnn_c=0.5,
                  pgnn_neigh_cutoff=6,
                  pgnn_anchor_exponent=1,
+                 pgnn_aggregation='max',
                  bs=1,
                  dtype=tf.float32):
 
@@ -47,7 +48,8 @@ class MessagePassingProgressiveNN(ProgressiveNN):
                                       single_layer_perceptron=use_single_layer_perceptron,
                                       pgnn_c=pgnn_c,
                                       pgnn_neigh_cutoff=pgnn_neigh_cutoff,
-                                      pgnn_anchor_exponent=pgnn_anchor_exponent)
+                                      pgnn_anchor_exponent=pgnn_anchor_exponent,
+                                      pgnn_aggregation=pgnn_aggregation)
             out = self.sage.build(pg, E)
             d_agg = d_msg
         elif not no_msg_passing:

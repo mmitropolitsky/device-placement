@@ -194,6 +194,7 @@ class SAGEMessenger(object):
                  pgnn_c=0.5,
                  pgnn_neigh_cutoff=6,
                  pgnn_anchor_exponent=1,
+                 pgnn_aggregation='max',
                  dtype=tf.float32):
         self.sample_ratio = sample_ratio
         self.embedding_size_deg = embedding_size_deg
@@ -207,6 +208,7 @@ class SAGEMessenger(object):
         self.pgnn_c = pgnn_c
         self.pgnn_neigh_cutoff = pgnn_neigh_cutoff
         self.pgnn_anchor_exponent = pgnn_anchor_exponent
+        self.pgnn_aggregation = pgnn_aggregation
 
         self.memo = {}
 
@@ -308,16 +310,16 @@ class SAGEMessenger(object):
                 3.6. Add the generated embedding to the dictionary so it can be used in the next hop.
                 """
                 # TODO this might save some time?
-                if i != 0:
-                    del self.samples[n][str(i - 1)]
+                # if i != 0:
+                #     del self.samples[n][str(i - 1)]
 
                 if i != self.hops:
-                    # embedding = tf.nn.dropout(embedding, rate=0.5)
+                    embedding = tf.nn.dropout(embedding, rate=0.5)
                     self.samples[n][str(i + 1)] = embedding
                 else:
-                    # embedding = tf.nn.l2_normalize(embedding)
+                    embedding = tf.nn.l2_normalize(embedding)
 
-                    # self.samples[n][str(i)] = embedding
+                    self.samples[n][str(i)] = embedding
                     self.samples[n][str(i) + 'pooled'] = tf.squeeze(tf.nn.pool(tf.expand_dims(embedding, axis=0),
                                                                                window_shape=[
                                                                                    embedding.shape[-1].value / 2 + 1],
@@ -332,7 +334,7 @@ class SAGEMessenger(object):
 
             self._build_anchor_sets(G)
 
-            positional_info_generator = self._aggregate_positional_info(G.nodes(), self.distances)
+            positional_info_generator = self._aggregate_positional_info(G.nodes(), self.pgnn_aggregation)
 
             positions = [pos for pos in positional_info_generator]
             # positions = tf.concat(positions, axis=0)
@@ -346,39 +348,65 @@ class SAGEMessenger(object):
             print('Returning GraphSAGE concatenated values.', datetime.datetime.now())
             return tf.concat([self.samples[n][str(self.hops)] for n in G.nodes()], axis=0)
 
-    def _aggregate_positional_info(self, nodes, distances):
+    def _aggregate_positional_info(self, nodes, aggregation='max'):
+        print("P-GNN aggregation is", aggregation)
         for i, n in enumerate(nodes):
             if self.memo.get(n) is None:
                 self.memo[n] = {}
             print(i, n)
             positional_aggregation = []
             for anchor_set in self.anchor_sets:
-                node_positions = []
-                for anchor in anchor_set:
-                    if self.memo[n].get(anchor) is not None:
-                        node_anchor_relation = self.memo[n][anchor]
-                        node_positions.append(node_anchor_relation)
-                        continue
+                aggregated = None
+                if aggregation == 'max':
+                    aggregated = self._max_aggregate_anchor(anchor_set, n)
+                elif aggregation == 'mean':
+                    # This one has a big performance overhead
+                    aggregated = self._mean_aggregate_anchor(anchor_set, n)
+                positional_aggregation.append(aggregated)
 
-                    node_embedding = self.samples[n][str(self.hops) + 'pooled']
-                    anchor_embedding = self.samples[anchor][str(self.hops) + 'pooled']
+            positional_aggregation = tf.concat(positional_aggregation, axis=0)
+            positional_aggregation = tf.reduce_mean(positional_aggregation, axis=0)
+            positional_aggregation = tf.expand_dims(positional_aggregation, axis=0)
+            yield self.fnns['pos'].build(positional_aggregation)
 
-                    # positional info between n and anchor node
-                    if distances.get(n) is not None and distances[n].get(anchor) is not None:
-                        positional_info = 1 / (distances[n][anchor] + 1)
-                        feature_info = tf.concat((node_embedding, anchor_embedding), axis=0)
-                        node_anchor_relation = positional_info * feature_info
-                    else:
-                        node_anchor_relation = tf.zeros(shape=[node_embedding.shape[0] + anchor_embedding.shape[0],
-                                                               node_embedding.shape[-1]])
+    def _mean_aggregate_anchor(self, anchor_set, node):
+        node_positions = []
+        for anchor in anchor_set:
+            if self.memo[node].get(anchor) is not None:
+                node_anchor_relation = self.memo[node][anchor]
+                node_positions.append(node_anchor_relation)
+                continue
 
-                    self.memo[n][anchor] = node_anchor_relation
-                    node_positions.append(node_anchor_relation)
+            node_embedding = self.samples[node][str(self.hops) + 'pooled']
+            anchor_embedding = self.samples[anchor][str(self.hops) + 'pooled']
 
-                # positional_aggregation.append(node_positions)
-                positional_aggregation.append(tf.reduce_mean(node_positions, axis=0))
-            positional_aggregation = tf.reduce_mean(tf.concat(positional_aggregation, axis=0), axis=0)
-            yield self.fnns['pos'].build(tf.expand_dims(positional_aggregation, axis=0))
+            # positional info between n and anchor node
+            if self.distances.get(node) is not None and self.distances[node].get(anchor) is not None:
+                positional_info = 1 / (self.distances[node][anchor] + 1)
+                feature_info = tf.concat((node_embedding, anchor_embedding), axis=0)
+                node_anchor_relation = positional_info * feature_info
+            else:
+                node_anchor_relation = tf.zeros(shape=[node_embedding.shape[0] + anchor_embedding.shape[0],
+                                                       node_embedding.shape[-1]])
+
+            self.memo[node][anchor] = node_anchor_relation
+            node_positions.append(node_anchor_relation)
+        return tf.reduce_mean(node_positions, axis=0)
+
+    def _max_aggregate_anchor(self, anchor_set, node):
+
+        anchor_node_intersections = [(k, self.distances[node][k]) for k in anchor_set
+                                     if self.distances[node].get(k) is not None and k != node]
+        max_agg_anchor = max(anchor_node_intersections, key=lambda i: i[1], default=None)
+        node_embedding = self.samples[node][str(self.hops) + 'pooled']
+        if max_agg_anchor is None:
+            return tf.zeros(shape=[node_embedding.shape[0] + node_embedding.shape[0],
+                                   node_embedding.shape[-1]])
+        anchor_embedding = self.samples[max_agg_anchor[0]][str(self.hops) + 'pooled']
+        positional_info = 1 / (self.distances[node][max_agg_anchor[0]] + 1)
+        feature_info = tf.concat((node_embedding, anchor_embedding), axis=0)
+        node_anchor_relation = positional_info * feature_info
+        return node_anchor_relation
 
     def _generate_samples(self, G):
         for n in G.nodes():
@@ -446,6 +474,8 @@ class SAGEMessenger(object):
     ''' 
       change this to be generic across different graphs to be placed
     '''
+
+
 class Messenger(object):
 
     def __init__(self, d, d1, small_nn=False, dtype=tf.float32):

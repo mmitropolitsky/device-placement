@@ -130,6 +130,7 @@ class ProgressivePlacer:
                               pgnn_c=config['pgnn_c'],
                               pgnn_neigh_cutoff=config['pgnn_neigh_cutoff'],
                               pgnn_anchor_exponent=config['pgnn_anchor_exponent'],
+                              pgnn_aggregation=config['pgnn_aggregation'],
                               bs=self.num_children)
 
         supervised = self.model.is_supervised
