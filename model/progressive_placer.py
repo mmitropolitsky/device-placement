@@ -195,6 +195,32 @@ class ProgressivePlacer:
 
             for ep in range(n_episodes):
 
+                if config['reinit_model'] and ep != 0:
+                    print("Reinitializing NN model", datetime.now())
+                    self.model = nn_model(self.progressive_graphs[0].get_emb_size(),
+                                          self.progressive_graphs[0].n_nodes(),
+                                          self.n_devs,
+                                          self.progressive_graphs[0],
+                                          config=config,
+                                          debug=config['debug'],
+                                          normalize_aggs=config['normalize_aggs'],
+                                          bn_pre_classifier=config['bn_pre_classifier'],
+                                          small_nn=config['small_nn'],
+                                          no_msg_passing=config['no_msg_passing'],
+                                          radial_mp=config['radial_mp'],
+                                          sage=config['sage'],
+                                          sage_position_aware=config['sage_position_aware'],
+                                          use_single_layer_perceptron=config['use_single_layer_perceptron'],
+                                          pgnn_c=config['pgnn_c'],
+                                          pgnn_neigh_cutoff=config['pgnn_neigh_cutoff'],
+                                          pgnn_anchor_exponent=config['pgnn_anchor_exponent'],
+                                          pgnn_aggregation=config['pgnn_aggregation'],
+                                          bs=self.num_children)
+                    # self.initialize_weights(sess, config['dont_restore_softmax'])
+                    sess.run(tf.global_variables_initializer())
+                    # sess.run(tf.local_variables_initializer())
+                    print("Finished reinitializing NN model", datetime.now())
+
                 if config['vary_init_state']:
                     init_pl = self.progressive_graphs[0].get_random_placement(seed=ep)
                 elif config['init_best_pl']:
@@ -830,16 +856,10 @@ class ProgressivePlacer:
             kwargs = {'run_metadata': self.run_metadata,
                       'options': self.run_options, }
 
-        # writer = tf.summary.FileWriter("tensorboard_output", sess.graph)
-        # print(sess.run(self.model))
-        # from tensorflow.python import debug as tf_debug
-        # sess = tf_debug.TensorBoardDebugWrapperSession(sess, "milko-xps:6007")
-
         s, lo, lp, expl, *train_outs = sess.run(model.get_eval_ops() + \
                                                 [model.expl_act] + \
                                                 train_ops,
                                                 feed_dict=feed, **kwargs)
-        # writer.close()
 
         return s, lo, feed, expl, train_outs
 

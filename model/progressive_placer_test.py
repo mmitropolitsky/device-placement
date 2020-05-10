@@ -193,6 +193,7 @@ if __name__ == '__main__':
     parser.add_argument('--pgnn-neigh-cutoff', type=int, dest='pgnn_neigh_cutoff')
     parser.add_argument('--pgnn-anchor-exponent', type=int, dest='pgnn_anchor_exponent')
     parser.add_argument('--pgnn-aggregation', type=str, dest='pgnn_aggregation', default='max')
+    parser.add_argument('--reinit-model', type=str2bool, dest='reinit_model')
 
     # training args
     parser.add_argument('--n-eps', type=int, default=int(1e9))

@@ -5,6 +5,7 @@ import networkx as nx
 import numpy as np
 import tensorflow as tf
 import datetime
+from tensorflow.python.framework import ops as tf_ops
 
 INIT_SCALE = 1
 
@@ -112,15 +113,6 @@ class Aggregator(object):
 
         f = tf.nn.relu(self.f.build(E))
 
-        # f = FNN(self.d, [20], self.d2, 'f20').build(f)
-        # f = tf.layers.batch_normalization(f, training=True)
-        # f = FNN(self.d, [21], self.d2, 'f21').build(f)
-        # f = tf.layers.batch_normalization(f, training=True)
-        # f = FNN(self.d, [22], self.d2, 'f22').build(f)
-        # f = tf.layers.batch_normalization(f, training=True)
-        # f = FNN(self.d, [23], self.d2, 'f23').build(f)
-        # f = tf.layers.batch_normalization(f, training=True)
-
         self.f_out = f
 
         if debug:
@@ -182,7 +174,6 @@ class SAGEMessenger(object):
     - `hops` - int [1,2] - how many hops away need to be aggregated
     - `aggregation` - {'mean', 'max', 'min', 'sum'} - how are a node's neighbours aggregated. Default is 'mean'
     """
-
     def __init__(self, embedding_size_deg,
                  embedding_transformation_deg,
                  small_nn=False,
@@ -303,7 +294,6 @@ class SAGEMessenger(object):
                     """
                     embedding = self.fnns[i].build(concatenated_with_current)
                 else:
-                    padding_multiplier = i if i != 0 else 1
                     embedding = tf.pad(self.fnns[i].build(embedding), paddings=[[2 ** i, 0], [0, 0]])
 
                 """
@@ -327,7 +317,6 @@ class SAGEMessenger(object):
         """
         4. Return the concatenated node embeddings for all nodes for the given number of hops
         """
-
         if self.position_aware:
 
             self._precalculate_distances(G.G, self.pgnn_neigh_cutoff)
@@ -342,6 +331,7 @@ class SAGEMessenger(object):
             out = tf.reshape(positions, shape=[-1, self.embedding_transformation_deg])
             print(out.shape)
             print("Returning P-GNN values", datetime.datetime.now())
+            out = tf.identity(out, name='pgnn')
             return out
 
         else:
