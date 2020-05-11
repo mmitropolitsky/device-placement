@@ -187,6 +187,11 @@ if __name__ == '__main__':
     parser.add_argument('--radial-mp', type=int, default=None)
     parser.add_argument('--tri-agg', type=str2bool, dest='tri_agg')
     parser.add_argument('--sage', type=str2bool, dest='sage')
+    parser.add_argument('--sage-hops', type=int, dest='sage_hops')
+    parser.add_argument('--sage-sample-ratio', type=float, dest='sage_sample_ratio')
+    parser.add_argument('--sage-dropout-rate', type=float, dest='sage_dropout_rate')
+    parser.add_argument('--sage-aggregation', type=str, dest='sage_aggregation', default='mean')
+
     parser.add_argument('--sage-position-aware', type=str2bool, dest='sage_position_aware')
     parser.add_argument('--use-single-layer-perceptron', type=str2bool, dest='use_single_layer_perceptron')
     parser.add_argument('--pgnn-c', type=float, dest='pgnn_c')

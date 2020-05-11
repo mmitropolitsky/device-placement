@@ -23,6 +23,10 @@ class MessagePassingProgressiveNN(ProgressiveNN):
                  no_msg_passing=False,
                  radial_mp=None,
                  sage=False,
+                 sage_hops=2,
+                 sage_sample_ratio=0.5,
+                 sage_dropout_rate=0.5,
+                 sage_aggregation='mean',
                  sage_position_aware=False,
                  use_single_layer_perceptron=False,
                  pgnn_c=0.5,
@@ -42,8 +46,10 @@ class MessagePassingProgressiveNN(ProgressiveNN):
         if sage:
             position_aware = sage_position_aware
             self.sage = SAGEMessenger(emb_size, d_msg,
-                                      sample_ratio=0.5,
-                                      hops=2,
+                                      sage_hops=sage_hops,
+                                      sage_sample_ratio=sage_sample_ratio,
+                                      sage_dropout_rate=sage_dropout_rate,
+                                      sage_aggregation=sage_aggregation,
                                       position_aware=position_aware,
                                       single_layer_perceptron=use_single_layer_perceptron,
                                       pgnn_c=pgnn_c,
@@ -128,7 +134,6 @@ class MessagePassingProgressiveNN(ProgressiveNN):
         if small_nn:
             classifier_hidden_layers = [inp_size]
         else:
-            # classifier_hidden_layers = [2 * inp_size, inp_size]
             classifier_hidden_layers = [2 * inp_size, inp_size]
 
         logits = Classifier(inp_size, classifier_hidden_layers, n_devs).build(out)

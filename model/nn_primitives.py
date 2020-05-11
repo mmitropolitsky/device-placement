@@ -177,9 +177,10 @@ class SAGEMessenger(object):
     def __init__(self, embedding_size_deg,
                  embedding_transformation_deg,
                  small_nn=False,
-                 sample_ratio=0.5,
-                 hops=2,
-                 aggregation='mean',
+                 sage_sample_ratio=0.5,
+                 sage_hops=2,
+                 sage_aggregation='mean',
+                 sage_dropout_rate=0.5,
                  position_aware=True,
                  single_layer_perceptron=False,
                  pgnn_c=0.5,
@@ -187,12 +188,16 @@ class SAGEMessenger(object):
                  pgnn_anchor_exponent=1,
                  pgnn_aggregation='max',
                  dtype=tf.float32):
-        self.sample_ratio = sample_ratio
+
         self.embedding_size_deg = embedding_size_deg
         self.embedding_transformation_deg = embedding_transformation_deg
         self.small_nn = small_nn
-        self.hops = hops
-        self.aggregation = aggregation
+
+        self.hops = sage_hops
+        self.aggregation = sage_aggregation
+        self.dropout_rate = sage_dropout_rate
+        self.sample_ratio = sage_sample_ratio
+
         self.position_aware = position_aware
         self.single_layer_perceptron = single_layer_perceptron
 
@@ -212,6 +217,7 @@ class SAGEMessenger(object):
 
     def _init_fnns(self):
         if self.single_layer_perceptron:
+            print("Using single layer perceptron.")
             with tf.name_scope('self_transform'):
                 self.self_transform = SingleLayerFNN(inp_size=self.embedding_size_deg,
                                                      inp_shape=(self.embedding_size_deg, self.embedding_size_deg),
@@ -299,8 +305,9 @@ class SAGEMessenger(object):
                 """
                 3.6. Add the generated embedding to the dictionary so it can be used in the next hop.
                 """
+                embedding = tf.nn.dropout(embedding, rate=self.dropout_rate)
                 if i != self.hops:
-                    embedding = tf.nn.dropout(embedding, rate=0.5)
+
                     self.samples[n][str(i + 1)] = embedding
                 else:
                     embedding = tf.nn.l2_normalize(embedding)
