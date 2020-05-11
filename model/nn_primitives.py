@@ -299,10 +299,6 @@ class SAGEMessenger(object):
                 """
                 3.6. Add the generated embedding to the dictionary so it can be used in the next hop.
                 """
-                # TODO this might save some time?
-                # if i != 0:
-                #     del self.samples[n][str(i - 1)]
-
                 if i != self.hops:
                     embedding = tf.nn.dropout(embedding, rate=0.5)
                     self.samples[n][str(i + 1)] = embedding
@@ -315,23 +311,30 @@ class SAGEMessenger(object):
                                                                                    embedding.shape[-1].value / 2 + 1],
                                                                                pooling_type='AVG', padding='VALID'))
         """
-        4. Return the concatenated node embeddings for all nodes for the given number of hops
+        4. Return either the concatenated node embeddings for all nodes for the given number of hops,
+        or the P-GNN position aware embeddings based on anchor sets
         """
         if self.position_aware:
-
+            """
+            4.1.1. Pre-calculate distances between all node pairs
+            """
             self._precalculate_distances(G.G, self.pgnn_neigh_cutoff)
 
+            """
+            4.1.2. Build the anchor sets based on the Bourgain theorem used in P-GNN
+            """
             self._build_anchor_sets(G)
 
+            """
+            4.1.3. Generate all embeddings for nodes based on feature info of the node and feature info of the nodes in
+            all anchor sets. Anchor set aggregations can be obtained using max or mean aggregation
+            """
             positional_info_generator = self._aggregate_positional_info(G.nodes(), self.pgnn_aggregation)
 
             positions = [pos for pos in positional_info_generator]
-            # positions = tf.concat(positions, axis=0)
 
             out = tf.reshape(positions, shape=[-1, self.embedding_transformation_deg])
-            print(out.shape)
-            print("Returning P-GNN values", datetime.datetime.now())
-            out = tf.identity(out, name='pgnn')
+            print("Returning P-GNN values with shape", out.shape, datetime.datetime.now())
             return out
 
         else:
@@ -343,7 +346,7 @@ class SAGEMessenger(object):
         for i, n in enumerate(nodes):
             if self.memo.get(n) is None:
                 self.memo[n] = {}
-            print(i, n)
+            # print(i, n)
             positional_aggregation = []
             for anchor_set in self.anchor_sets:
                 aggregated = None

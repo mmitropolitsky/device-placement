@@ -195,7 +195,7 @@ class ProgressivePlacer:
 
             for ep in range(n_episodes):
 
-                if config['reinit_model'] and ep != 0:
+                if config['reinit_model'] and ep > 1:
                     print("Reinitializing NN model", datetime.now())
                     self.model = nn_model(self.progressive_graphs[0].get_emb_size(),
                                           self.progressive_graphs[0].n_nodes(),
@@ -219,6 +219,7 @@ class ProgressivePlacer:
                     # self.initialize_weights(sess, config['dont_restore_softmax'])
                     sess.run(tf.global_variables_initializer())
                     # sess.run(tf.local_variables_initializer())
+                    self.restore_saver.restore(sess, 'model/models/test-' + str(ep - 1))
                     print("Finished reinitializing NN model", datetime.now())
 
                 if config['vary_init_state']:
