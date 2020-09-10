@@ -52,8 +52,8 @@ class ProgressivePlacer:
         self.max_rounds = config['max_rnds']
         self.print_freq = config['print_freq']
         self.discard_last_rnds = config['discard_last_rnds']
-        self.tb_dir = '%smodels/tb-logs/%s' % (config['model_folder_prefix'], config['name'])
-        self.eval_dir = '%smodels/eval-dir/%s' % (config['model_folder_prefix'], config['name'])
+        self.tb_dir = '%smodels/tb-logs/%s' % (config['model_folder_prefix'], config['dataset'])
+        self.eval_dir = '%smodels/eval-dir/%s' % (config['model_folder_prefix'], config['dataset'])
         self.fig_dir = '%s/figs/' % self.eval_dir
         self.record_best_pl_file = '%s/best_pl' % self.eval_dir
         # TODO
@@ -65,7 +65,7 @@ class ProgressivePlacer:
         self.save_freq = config['save_freq']
         self.best_runtimes = []
         self.n_max_best_runtimes = 5
-        self.record_pl_write_freq = 10
+        self.record_pl_write_freq = 1
         self.ep2pl = {}
         self.debug_verbose = config['debug_verbose']
         self.dont_share_classifier = config['dont_share_classifier']
@@ -318,6 +318,15 @@ class ProgressivePlacer:
                 if (ep < 100 and ep % 10 == 0) or ep % 1000 == 0:
                     self.plot_rnd_run_times(ep, rnd_cum_rewards)
 
+                # This should be extracted better...
+                with open(self.tb_dir + '/summary.txt', 'a+') as f:
+                    f.write('\nEpisode: ' + str(ep))
+                    f.write('\nep best runtime: ' + str(epbest_pl_rt))
+                    f.write('\nbest so far: ' + str(best_rt))
+                    f.write('\nep best reward runtime: ' + str(epbest_rew_rt))
+                    f.write('\nbest reward runtime: ' + str(best_rew_rt))
+                    f.write('\n------------\n')
+
                 if ep % self.tb_log_freq == 0 or len(summ) > 0:
                     d = {'run_times/episode_end_rt': float(np.average([rt[-1] for rt in run_times])),
                          'run_times/ep_best_rt': epbest_pl_rt,
@@ -354,6 +363,8 @@ class ProgressivePlacer:
             self.summ_send_q.put([d, ep, eval])
             assert self.summ_recv_q.get()
 
+        with open(self.tb_dir + '/summary' + str(ep) + '.json', 'w') as f:
+            json.dump(str(d), f)
         # if not self.summ_send_q or self.log_tb_workers:
         #     if eval:
         #         self.eval_writer.write(d, ep)
@@ -532,7 +543,7 @@ class ProgressivePlacer:
 
             # plt.show()
             Gg = self.progressive_graphs[0].G
-            pos = nx.spiral_layout(Gg)
+            pos = nx.kamada_kawai_layout(Gg)
 
             from itertools import count
             groups = set(range(config['n_devs']))
@@ -540,19 +551,24 @@ class ProgressivePlacer:
             mappingToPrint = dict(zip(sorted(groups), count()))
             colorsToPrint = [mappingToPrint[Gg.nodes[n]['placement']] for n in nodesToPrint]
 
-            # https://matplotlib.org/3.1.1/gallery/color/colormap_reference.html for CMAP
-            nc = nx.draw_networkx_nodes(Gg, pos,
-                                        nodelist=nodesToPrint,
-                                        node_color=colorsToPrint,
-                                        with_labels=False,
-                                        node_size=10,
-                                        cmap='plasma')
+            [print(n + ' ' +  str(Gg.nodes[n]['placement'])) for n in Gg.nodes]
 
+            # https://matplotlib.org/3.1.1/gallery/color/colormap_reference.html for CMAP
+            # nx.draw_networkx_edges(Gg, pos, width=.5, alpha=0.2)
+            nc = nx.draw_networkx(Gg, pos,
+                                  nodelist=nodesToPrint,
+                                  node_color=colorsToPrint,
+                                  with_labels=False,
+                                  node_size=10,
+                                  font_size=3,
+                                  width=.5,
+                                  arrowsize=5,
+                                  cmap='plasma')
             # TODO remove for remote play
-            plt.colorbar(nc)
+            # plt.colorbar(nc)
             plt.axis('off')
-            nx.draw_networkx_edges(Gg, pos, width=1.0, alpha=0.2)
-            placement_graph_img_location = '%s/graph-%d.png' % (self.fig_dir, ep)
+
+            placement_graph_img_location = '%s/graph-%d.pdf' % (self.fig_dir, ep)
             plt.savefig(placement_graph_img_location, dpi=300)
             plt.clf()
             print('Saved graph placement image at %s' % placement_graph_img_location)

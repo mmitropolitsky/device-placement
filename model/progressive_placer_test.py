@@ -133,6 +133,32 @@ class ProgressivePlacerTest(object):
                 f = lambda _, __, p, ___: pptf.simulate(p)
             G = pptf.get_grouped_graph()
 
+        Gg = G
+        pos = nx.spiral_layout(Gg)
+
+        from itertools import count
+        groups = set(range(config['n_devs']))
+        nodesToPrint = Gg.nodes
+        # mappingToPrint = dict(zip(sorted(groups), count()))
+        # colorsToPrint = [mappingToPrint[Gg.nodes[n]['placement']] for n in nodesToPrint]
+
+        # https://matplotlib.org/3.1.1/gallery/color/colormap_reference.html for CMAP
+        nc = nx.draw_networkx_nodes(Gg, pos,
+                                    nodelist=nodesToPrint,
+                                    # node_color=colorsToPrint,
+                                    with_labels=True,
+                                    node_size=10,
+                                    cmap='plasma')
+
+        # TODO remove for remote play
+        plt.colorbar(nc)
+        plt.axis('off')
+        nx.draw_networkx_edges(Gg, pos, width=1.0, alpha=0.2)
+        # placement_graph_img_location = '%s/graph-%d.png' % (self.fig_dir, ep)
+        # plt.savefig(placement_graph_img_location, dpi=300)
+        plt.show()
+        plt.clf()
+
         if not f:
             if config['rew_singlegpu']:
                 f = ProgressivePlacerTest.sim_single_gpu
@@ -175,6 +201,9 @@ if __name__ == '__main__':
     parser.add_argument('--graph-size', '-N', type=int, default=4)
     parser.add_argument('--pickled-inp-file', '-i', type=str, default=None, nargs='+')
     parser.add_argument('--mul-graphs', type=str, default=None, nargs='+')
+    parser.add_argument('--dataset-folder', '-dataset', type=str, default=None,
+                        help='Use this to denote a folder containing a dataset like cifar10. '
+                             'Each subfolder will be checked for input.pkl files')
 
     parser.add_argument('--n-devs', type=int, default=2)
     parser.add_argument('--model-folder-prefix', type=str, default='', dest='model_folder_prefix')
@@ -297,5 +326,14 @@ if __name__ == '__main__':
         ProgressivePlacerTest().mul_graphs(args.__dict__)
     else:
         start_time = time()
+        if(args.__dict__['dataset_folder'] is not None):
+            r = []
+            for root, dirs, files in os.walk(args.__dict__['dataset_folder']):
+                for name in files:
+                    args.__dict__['dataset'] = root.split("/")[-1]
+                    args.__dict__['pickled_inp_file'] = [os.path.join(root, name)]
+                    ProgressivePlacerTest().test(args.__dict__)
+                    # r.append(os.path.join(root, name))
+
         ProgressivePlacerTest().test(args.__dict__)
         print("Test time (minutes): ", (time() - start_time) / 60)

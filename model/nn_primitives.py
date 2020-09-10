@@ -394,17 +394,28 @@ class SAGEMessenger(object):
         return tf.reduce_mean(node_positions, axis=0)
 
     def _max_aggregate_anchor(self, anchor_set, node):
-
+        # find the nodes of the anchor set which can be reached by the current node
         anchor_node_intersections = [(k, self.distances[node][k]) for k in anchor_set
                                      if self.distances[node].get(k) is not None and k != node]
+
+        # get the node with the maximum distance
         max_agg_anchor = max(anchor_node_intersections, key=lambda i: i[1], default=None)
+
         node_embedding = self.samples[node][str(self.hops) + 'pooled']
+        # if there is no such node, create a zero tensor to keep the dimensions
         if max_agg_anchor is None:
             return tf.zeros(shape=[node_embedding.shape[0] + node_embedding.shape[0],
                                    node_embedding.shape[-1]])
+
+        # get the precalculated embedding of the max node
         anchor_embedding = self.samples[max_agg_anchor[0]][str(self.hops) + 'pooled']
+
+        # calculate the distance
         positional_info = 1 / (self.distances[node][max_agg_anchor[0]] + 1)
+
+        # concatenate the embeddings of the node and the max anchor node
         feature_info = tf.concat((node_embedding, anchor_embedding), axis=0)
+
         node_anchor_relation = positional_info * feature_info
         return node_anchor_relation
 
